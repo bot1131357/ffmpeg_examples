@@ -2,17 +2,15 @@
 * best up-to-date implementation of video encoding so far 
 * For some reason, webm files are a little shorter than the full length. Oh the mysteries of life. 	
 */
-// #include <stdlib.h>
-// #include <stdio.h>
-// #include <string.h>
-// #include <ctime>
+
+#include <algorithm>
 #include <iostream>
 
  // FFmpeg C library in C++ programs requires extern "C" in order to inhibit the name mangling that C++ symbols gothrough
 extern "C"
 {
 // #include <libavutil/opt.h>
-#include <libavcodec/avcodec.h>
+#include <libavCodec/avCodec.h>
 // #include <libavutil/channel_layout.h>
 // #include <libavutil/common.h>
 #include <libavutil/imgutils.h>
@@ -31,97 +29,99 @@ int main(int argc, char** argv)
 	int i, x, y, ret;
 	av_register_all();
 
-	AVCodec *codec = NULL;
-	AVCodecParameters* codecpar = NULL;
-	AVCodecContext *codecCtx = NULL;
-	AVFormatContext *pFormatCtx = NULL;
-	AVOutputFormat *pOutFormat = NULL;
-	AVStream * pVideoStream = NULL;;
-	AVFrame *picture = NULL;;
+	AVCodec *Codec = NULL;
+	AVCodecParameters* Codecpar = NULL;
+	AVCodecContext *CodecCtx = NULL;
+	AVFormatContext *FormatCtx = NULL;
+	AVOutputFormat *OutputFormat = NULL;
+	AVStream * VideoStream = NULL;;
+	AVFrame *ImageFrame = NULL;;
 	
 	// char filename[] = "tmp/delme.webm";
 	// char filename[] = "tmp/delme.avi";
 	char filename[] = "tmp/delme.mov";
 
 	// Setting up AVFormatContext's oformat by guessing on the filename
-	pOutFormat = av_guess_format(NULL, filename, NULL);
-	if (NULL == pOutFormat) {
+	OutputFormat = av_guess_format(NULL, filename, NULL);
+	if (NULL == OutputFormat) {
 		cerr << "Could not guess output format" << endl;
 		return -1;
 	}
-	pFormatCtx = avformat_alloc_context();
-	pFormatCtx->oformat = pOutFormat;
-	memcpy(pFormatCtx->filename, filename,
-		min(strlen(filename), sizeof(pFormatCtx->filename)));
+	FormatCtx = avformat_alloc_context();
+	FormatCtx->oformat = OutputFormat;
+	memcpy(FormatCtx->filename, filename,
+		min(strlen(filename), sizeof(FormatCtx->filename)));
 
-	// Add a video stream to pFormatCtx
-	pVideoStream = avformat_new_stream(pFormatCtx, 0);
-	if (!pVideoStream)
+	// Add a video stream to FormatCtx
+	VideoStream = avformat_new_stream(FormatCtx, 0);
+	if (!VideoStream)
 	{
 		printf("Cannot add new vidoe stream\n");
 		return -1;
 	}
 
-	pVideoStream->time_base.den = FRAMERATE;
-	pVideoStream->time_base.num = 1;
+	VideoStream->time_base.den = FRAMERATE;
+	VideoStream->time_base.num = 1;
 
-	// Allocate and set codec context
-	codecCtx = avcodec_alloc_context3(codec);
-	codecCtx->time_base.den = FRAMERATE;
-	codecCtx->time_base.num = 1;
-	codecCtx->codec_type = AVMEDIA_TYPE_VIDEO;
-	codecCtx->bit_rate = 300000;
-	codecCtx->width = 320;
-	codecCtx->height = 240;
-	codecCtx->pix_fmt = AV_PIX_FMT_YUV420P;
+	// Allocate and set Codec context
+	CodecCtx = avCodec_alloc_context3(Codec);
+	CodecCtx->time_base.den = FRAMERATE;
+	CodecCtx->time_base.num = 1;
+	CodecCtx->Codec_type = AVMEDIA_TYPE_VIDEO;
+	CodecCtx->bit_rate = 300000;
+	CodecCtx->width = 320;
+	CodecCtx->height = 240;
+	CodecCtx->pix_fmt = AV_PIX_FMT_YUV420P;
 
-	// Needed in pFormatCtx. Not working otherwise.
-	codecpar = pVideoStream->codecpar;
-	codecpar->codec_id = (AVCodecID)pOutFormat->video_codec;
-	codecpar->codec_type = AVMEDIA_TYPE_VIDEO;
-	codecpar->bit_rate = 300000;
-	codecpar->width = 320;
-	codecpar->height = 240;
-	codecpar->format = AV_PIX_FMT_YUV420P;
+	// Needed in FormatCtx. Not working otherwise.
+	Codecpar = VideoStream->Codecpar;
+	Codecpar->Codec_id = (AVCodecID)OutputFormat->video_Codec;
+	Codecpar->Codec_type = AVMEDIA_TYPE_VIDEO;
+	Codecpar->bit_rate = 300000;
+	Codecpar->width = 320;
+	Codecpar->height = 240;
+	Codecpar->format = AV_PIX_FMT_YUV420P;
 
 	/** 
-	* Find and open the codec.
+	* Find and open the Codec.
 	*/
-	codec = avcodec_find_encoder((AVCodecID)pOutFormat->video_codec);
-	if (codec == NULL) {
+	Codec = avCodec_find_encoder((AVCodecID)OutputFormat->video_Codec);
+	if (Codec == NULL) {
 		fprintf(stderr, "Codec not found\n");
 		return -1;
 	}
 	
-	if (avcodec_open2(codecCtx, codec, NULL) < 0)
+	if (avCodec_open2(CodecCtx, Codec, NULL) < 0)
 	{
-		printf("Cannot open video codec\n");
+		printf("Cannot open video Codec\n");
 		return -1;
 	}
 
 	// Open output file
-	if (avio_open(&pFormatCtx->pb, filename, AVIO_FLAG_WRITE) < 0)
+	if (avio_open(&FormatCtx->pb, filename, AVIO_FLAG_WRITE) < 0)
 	{
 		printf("Cannot open file\n");
 		return -1;
 	}
 
 	// Write file header.
-	ret = avformat_write_header(pFormatCtx, NULL);
+	ret = avformat_write_header(FormatCtx, NULL);
 
 	// Create frame
-	picture = av_frame_alloc();
-	picture->format = codecCtx->pix_fmt;
-	picture->width = codecCtx->width;
-	picture->height = codecCtx->height;
+	ImageFrame = av_frame_alloc();
+	ImageFrame->format = CodecCtx->pix_fmt;
+	ImageFrame->width = CodecCtx->width;
+	ImageFrame->height = CodecCtx->height;
 
 	// What's the size of a frame?
-	int bufferImgSize = av_image_get_buffer_size(codecCtx->pix_fmt, codecCtx->width,
-		codecCtx->height, 1);
+	int bufferImgSize = av_image_get_buffer_size(CodecCtx->pix_fmt, CodecCtx->width,
+		CodecCtx->height, 1);
 	cout << "Size of a single frame: " << bufferImgSize << endl;
 
 	// Allocate memory for the frame
-	av_image_alloc(picture->data, picture->linesize, codecCtx->width, codecCtx->height, codecCtx->pix_fmt, 32);
+	av_image_alloc(ImageFrame->data, ImageFrame->linesize, CodecCtx->width, CodecCtx->height, CodecCtx->pix_fmt, 32);
+
+	// av_frame_get_buffer(ImageFrame, 32);
 
 	AVPacket avpkt;
 
@@ -137,49 +137,57 @@ int main(int argc, char** argv)
 		* Y array has the same dimension as the frame, whereas U and V are only half the dimensions (therefore quarter of the area) 
 		*/
 		/* Y */
-		for (y = 0; y<codecCtx->height; y++) {
-			for (x = 0; x<codecCtx->width; x++) {
-				picture->data[0][y * picture->linesize[0] + x] = x + y + i * 3;
+		for (y = 0; y<CodecCtx->height; y++) {
+			for (x = 0; x<CodecCtx->width; x++) {
+				ImageFrame->data[0][y * ImageFrame->linesize[0] + x] = x + y + i * 3;
 			}
 		}
 
 		/* U and V */
-		for (y = 0; y<codecCtx->height / 2; y++) {
-			for (x = 0; x<codecCtx->width / 2; x++) {
-				picture->data[1][y * picture->linesize[1] + x] = 128 + y + i * 2;
-				picture->data[2][y * picture->linesize[2] + x] = 64 + x + i * 5;
+		for (y = 0; y<CodecCtx->height / 2; y++) {
+			for (x = 0; x<CodecCtx->width / 2; x++) {
+				ImageFrame->data[1][y * ImageFrame->linesize[1] + x] = 128 + y + i * 2;
+				ImageFrame->data[2][y * ImageFrame->linesize[2] + x] = 64 + x + i * 5;
 			}
 		}
-		picture->pts = i;
+		ImageFrame->pts = i;
 
 		 
 		// Encoder input: Supply a raw (uncompressed) frame to the encoder  		
-		if (0 == avcodec_send_frame(codecCtx, picture))
+		if (0 == avCodec_send_frame(CodecCtx, ImageFrame))
 		{
 			// Encoder output: Receive the packet from the encoder 
-			if (0 == avcodec_receive_packet(codecCtx, &avpkt)) // Packet available
+			if (0 == avCodec_receive_packet(CodecCtx, &avpkt)) // Packet available
 			{
 				/** 
 				* Time stamps! Tricky little bastards. Still figuring it out myself.
+				* DTS - Decoding Time Stamp
+				* PTS - Presentation Time Stamp
+				* DTS and PTS are usually the same unless we have B frames. This is 
+				* because B-frames depend on information of frames before and after 
+				* them and maybe be decoded in a sequence different from PTS.
+				* 
+				* av_rescale_q_rnd(a,bq,cq,AVRounding) supposedly gives a*(bq/cq)
+				*
 				*/
 				avpkt.dts = av_rescale_q_rnd(avpkt.dts,
-					codecCtx->time_base,
-					pFormatCtx->streams[0]->time_base,
+					CodecCtx->time_base,
+					FormatCtx->streams[0]->time_base,
 					(AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
 				avpkt.pts = av_rescale_q_rnd(avpkt.pts,
-					codecCtx->time_base,
-					pFormatCtx->streams[0]->time_base,
+					CodecCtx->time_base,
+					FormatCtx->streams[0]->time_base,
 					(AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
 				avpkt.duration = av_rescale_q(1,
-					codecCtx->time_base,
-					pFormatCtx->streams[0]->time_base);
+					CodecCtx->time_base,
+					FormatCtx->streams[0]->time_base);
 
 				// cout << "avpkt.dts: " << avpkt.dts << "\t"
 				// << "avpkt.pts: " << avpkt.pts << "\t"
 				// << "avpkt.duration: " << avpkt.duration << "\n";
 
 				// If all goes well, we write the packet to output
-				if (0 == av_interleaved_write_frame(pFormatCtx, &avpkt))
+				if (0 == av_interleaved_write_frame(FormatCtx, &avpkt))
 				{
 					av_packet_unref(&avpkt);
 				}
@@ -191,33 +199,33 @@ int main(int argc, char** argv)
 	int err = 0;
 	/** 
 	* Flush remaining data from the encoder after the previous loop
-	* We will check continuously until avcodec_receive_packet() returns AVERROR_EOF
+	* We will check continuously until avCodec_receive_packet() returns AVERROR_EOF
 	*/
 	while (1)
 	{
 		av_init_packet(&avpkt);
-		err = avcodec_send_frame(codecCtx, NULL);
+		err = avCodec_send_frame(CodecCtx, NULL);
 		if (0 == err) // Packet available
 		{
-			if (0 == avcodec_receive_packet(codecCtx, &avpkt))
+			if (0 == avCodec_receive_packet(CodecCtx, &avpkt))
 			{
 				avpkt.dts = av_rescale_q_rnd(avpkt.dts,
-					codecCtx->time_base,
-					pFormatCtx->streams[0]->time_base,
+					CodecCtx->time_base,
+					FormatCtx->streams[0]->time_base,
 					(AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
 				avpkt.pts = av_rescale_q_rnd(avpkt.pts,
-					codecCtx->time_base,
-					pFormatCtx->streams[0]->time_base,
+					CodecCtx->time_base,
+					FormatCtx->streams[0]->time_base,
 					(AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
 				avpkt.duration = av_rescale_q(1,
-					codecCtx->time_base,
-					pFormatCtx->streams[0]->time_base);
+					CodecCtx->time_base,
+					FormatCtx->streams[0]->time_base);
 
 				// cout << "avpkt.dts: " << avpkt.dts << "\t"
 				// << "avpkt.pts: " << avpkt.pts << "\t"
 				// << "avpkt.duration: " << avpkt.duration << "\n";
 
-				if (0 == av_interleaved_write_frame(pFormatCtx, &avpkt))
+				if (0 == av_interleaved_write_frame(FormatCtx, &avpkt))
 				{
 					av_packet_unref(&avpkt);
 				}
@@ -238,13 +246,13 @@ int main(int argc, char** argv)
 	}
 
 	// Remember to clean up
-	av_write_trailer(pFormatCtx);
-	avcodec_close(codecCtx);
-	avio_close(pFormatCtx->pb);
-	av_free(codecCtx);
-	avformat_free_context(pFormatCtx);
-	av_freep(&picture->data[0]);
-	av_frame_free(&picture);
+	av_write_trailer(FormatCtx);
+	avCodec_close(CodecCtx);
+	avio_close(FormatCtx->pb);
+	av_free(CodecCtx);
+	avformat_free_context(FormatCtx);
+	av_freep(&ImageFrame->data[0]);
+	av_frame_free(&ImageFrame);
 		
 
     return 0;
