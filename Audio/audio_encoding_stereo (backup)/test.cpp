@@ -25,16 +25,16 @@ inline const char* err2str(int ret)
 
 using namespace std;
 
-#define CH_LAYOUT AV_CH_LAYOUT_MONO
+#define CH_LAYOUT AV_CH_LAYOUT_STEREO
 #define SAMPLE_FMT AV_SAMPLE_FMT_S16
 #define CODEC_ID AV_CODEC_ID_PCM_S16LE
-#define CHANNELS 1
+#define CHANNELS 2
 #define SAMPLERATE 44100
 char filename[] = "tmp/delme.wav";	
 
 int main(int argc, char** argv)
 {
-	int i, j, x, y, ret;
+	int i, j, k, x, y, ret;
 
 	av_register_all();
 
@@ -137,41 +137,29 @@ int main(int argc, char** argv)
 	}
 
 	/** Allocate memory for audio frame
-	*	We could also use av_malloc, which requires av_freep at the end 
-	*	avcodec_fill_audio_frame is useful if you want to encode directly 
-	*	from an input buffer without making a copy
 	*/
 	av_frame_get_buffer(AudioFrame, 32);
 
-	//samples = (uint16_t*)av_malloc(buffer_size);
-	//if (!samples) {
-	//	fprintf(stderr, "Could not allocate %d bytes for samples buffer\n",
-	//		buffer_size);
-	//	exit(1);
-	//}
-	///* setup the data pointers in the AVFrame */
-	//ret = avcodec_fill_audio_frame(audio_frame, CodecCtx->channels, CodecCtx->sample_fmt,
-	//	(const uint8_t*)samples, buffer_size, 0);
-	//if (ret < 0) {
-	//	fprintf(stderr, "Could not setup audio frame\n");
-	//	exit(1);
-	//}
 
 	AVPacket avpkt;
 	/** 
 	* Using a while loop, we will encode 5 seconds of audio 
-	* We generate a tone with the function y = 10000*sin(2*pi*440*t)
+	* We generate a tone with the function y = 10000*sin(2*pi*440*t) multiplied by a fade out (n_frames-i)/n_frames
 	*/
 
 	int next_pts = 0;
 	float theta = 0;
+	int n_frames = 5* CodecCtx->sample_rate/ CodecCtx->frame_size;
 	uint16_t *samples = (uint16_t*)AudioFrame->data[0];
 	float theta_incr = 2 * M_PI * 440.0 / CodecCtx->sample_rate;
-	for (i = 0; i < 5* CodecCtx->sample_rate/ CodecCtx->frame_size; i++) {
+	for (i = 0; i < n_frames; i++) {
 		av_init_packet(&avpkt);
 
 		for (j = 0; j < CodecCtx->frame_size; j++) {
-			samples[j] = (uint16_t)(sin(theta) * 10000);
+			for (k = 0; k < CodecCtx->channels; k++)
+			{
+				samples[2 * j + k] = (uint16_t)(sin(theta) * 10000 * (n_frames-i)/n_frames);
+			}
 			theta += theta_incr;
 		}
 

@@ -82,6 +82,21 @@ int main(int argc, char** argv)
 	Codecpar->height = 240;
 	Codecpar->format = AV_PIX_FMT_YUV420P;
 
+
+	/** 
+	* Set some options for VPX encoding
+	*/
+    /* Timing $ time ./test 
+    * cpu realtime  : 6.25s
+    * speed 8       : 1.12s
+    * both          : 0.52s
+    */
+    av_dict_set(&d, "deadline", "realtime", 0); // smaller size
+    // av_dict_set(&d, "deadline", "best", 0); // smaller size
+    // av_dict_set(&d, "cpu-used", "8", 0); // no effect
+    av_dict_set(&d, "speed", "8", 0); // fast
+    // av_dict_set(&d, "speed", "0", 0); // slow
+
 	/** 
 	* Find and open the Codec.
 	*/
@@ -91,7 +106,7 @@ int main(int argc, char** argv)
 		return -1;
 	}
 	
-	if (avCodec_open2(CodecCtx, Codec, NULL) < 0)
+	if (avCodec_open2(CodecCtx, Codec, &d) < 0)
 	{
 		printf("Cannot open video Codec\n");
 		return -1;
