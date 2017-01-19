@@ -67,12 +67,6 @@ int main(int argc, char** argv)
 		exit(1);
 	}
 
-	CodecCtx = avcodec_alloc_context3(Codec);
-	CodecCtx->channel_layout = CH_LAYOUT;
-	CodecCtx->channels = CHANNELS;
-	CodecCtx->sample_fmt = SAMPLE_FMT;
-	CodecCtx->sample_rate = SAMPLERATE;
-	CodecCtx->codec_id = CODEC_ID;
 
 	// Needed in pFormatCtx. Not working otherwise.
 	Codecpar = AudioStream->codecpar;
@@ -81,6 +75,10 @@ int main(int argc, char** argv)
 	Codecpar->channels = CHANNELS;
 	Codecpar->format= SAMPLE_FMT;
 	Codecpar->sample_rate = SAMPLERATE;
+	Codecpar->codec_type = AVMEDIA_TYPE_AUDIO;
+
+	CodecCtx = avcodec_alloc_context3(Codec);
+	ret = avcodec_parameters_to_context(CodecCtx, Codecpar);
 
 	// Check sample format is supported
 	const enum AVSampleFormat *p = Codec->sample_fmts;

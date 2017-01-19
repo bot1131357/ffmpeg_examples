@@ -10,7 +10,7 @@
 extern "C"
 {
 // #include <libavutil/opt.h>
-#include <libavCodec/avCodec.h>
+#include <libavcodec/avcodec.h>
 // #include <libavutil/channel_layout.h>
 // #include <libavutil/common.h>
 #include <libavutil/imgutils.h>
@@ -37,9 +37,9 @@ int main(int argc, char** argv)
 	AVStream * VideoStream = NULL;;
 	AVFrame *ImageFrame = NULL;;
 	
-	// char filename[] = "tmp/delme.webm";
+	char filename[] = "tmp/delme.webm";
 	// char filename[] = "tmp/delme.avi";
-	char filename[] = "tmp/delme.mov";
+	// char filename[] = "tmp/delme.mov";
 
 	// Setting up AVFormatContext's oformat by guessing on the filename
 	OutputFormat = av_guess_format(NULL, filename, NULL);
@@ -63,26 +63,24 @@ int main(int argc, char** argv)
 	VideoStream->time_base.den = FRAMERATE;
 	VideoStream->time_base.num = 1;
 
-	// Allocate and set Codec context
-	CodecCtx = avCodec_alloc_context3(Codec);
-	CodecCtx->time_base.den = FRAMERATE;
-	CodecCtx->time_base.num = 1;
-	CodecCtx->Codec_type = AVMEDIA_TYPE_VIDEO;
-	CodecCtx->bit_rate = 300000;
-	CodecCtx->width = 320;
-	CodecCtx->height = 240;
-	CodecCtx->pix_fmt = AV_PIX_FMT_YUV420P;
-
 	// Needed in FormatCtx. Not working otherwise.
-	Codecpar = VideoStream->Codecpar;
-	Codecpar->Codec_id = (AVCodecID)OutputFormat->video_Codec;
-	Codecpar->Codec_type = AVMEDIA_TYPE_VIDEO;
+	Codecpar = VideoStream->codecpar;
+	Codecpar->codec_id = (AVCodecID)OutputFormat->video_codec;
+	Codecpar->codec_type = AVMEDIA_TYPE_VIDEO;
 	Codecpar->bit_rate = 300000;
 	Codecpar->width = 320;
 	Codecpar->height = 240;
 	Codecpar->format = AV_PIX_FMT_YUV420P;
 
+	// Allocate and set Codec context
+	CodecCtx = avcodec_alloc_context3(Codec);
+	CodecCtx->time_base.den = FRAMERATE;
+	CodecCtx->time_base.num = 1;
+	ret = avcodec_parameters_to_context(CodecCtx, Codecpar);
+    
 
+
+    AVDictionary *d = NULL;           // "create" an empty dictionary
 	/** 
 	* Set some options for VPX encoding
 	*/
@@ -100,13 +98,13 @@ int main(int argc, char** argv)
 	/** 
 	* Find and open the Codec.
 	*/
-	Codec = avCodec_find_encoder((AVCodecID)OutputFormat->video_Codec);
+	Codec = avcodec_find_encoder((AVCodecID)OutputFormat->video_codec);
 	if (Codec == NULL) {
 		fprintf(stderr, "Codec not found\n");
 		return -1;
 	}
 	
-	if (avCodec_open2(CodecCtx, Codec, &d) < 0)
+	if (avcodec_open2(CodecCtx, Codec, &d) < 0)
 	{
 		printf("Cannot open video Codec\n");
 		return -1;
@@ -169,10 +167,10 @@ int main(int argc, char** argv)
 
 		 
 		// Encoder input: Supply a raw (uncompressed) frame to the encoder  		
-		if (0 == avCodec_send_frame(CodecCtx, ImageFrame))
+		if (0 == avcodec_send_frame(CodecCtx, ImageFrame))
 		{
 			// Encoder output: Receive the packet from the encoder 
-			if (0 == avCodec_receive_packet(CodecCtx, &avpkt)) // Packet available
+			if (0 == avcodec_receive_packet(CodecCtx, &avpkt)) // Packet available
 			{
 				/** 
 				* Time stamps! Tricky little bastards. Still figuring it out myself.
@@ -214,15 +212,15 @@ int main(int argc, char** argv)
 	int err = 0;
 	/** 
 	* Flush remaining data from the encoder after the previous loop
-	* We will check continuously until avCodec_receive_packet() returns AVERROR_EOF
+	* We will check continuously until avcodec_receive_packet() returns AVERROR_EOF
 	*/
 	while (1)
 	{
 		av_init_packet(&avpkt);
-		err = avCodec_send_frame(CodecCtx, NULL);
+		err = avcodec_send_frame(CodecCtx, NULL);
 		if (0 == err) // Packet available
 		{
-			if (0 == avCodec_receive_packet(CodecCtx, &avpkt))
+			if (0 == avcodec_receive_packet(CodecCtx, &avpkt))
 			{
 				avpkt.dts = av_rescale_q_rnd(avpkt.dts,
 					CodecCtx->time_base,
@@ -262,7 +260,7 @@ int main(int argc, char** argv)
 
 	// Remember to clean up
 	av_write_trailer(FormatCtx);
-	avCodec_close(CodecCtx);
+	avcodec_close(CodecCtx);
 	avio_close(FormatCtx->pb);
 	av_free(CodecCtx);
 	avformat_free_context(FormatCtx);
